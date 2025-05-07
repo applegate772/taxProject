@@ -163,4 +163,29 @@ if (require.main === module) {
   });
 }
 
-module.exports = { calculateTaxEstimate };
+function formatTaxEstimate(result) {
+  const f = n => Math.ceil(n).toLocaleString();
+  const p = n => n === null ? "—" : n.toFixed(1) + " %";
+  return (
+`================  ${result.quarter} FEDERAL ESTIMATE  ================
+
+Amount to pay this quarter .............  $${f(result.amountToPay)}
+Projected 2025 federal tax (all year) ...  $${f(result.projectedFederalTax)}
+Effective tax rate (proj) ...............  ${p(result.effectiveTaxRate)}
+
+----------------  DETAIL  ----------------
+Quarter business profit .................  $${f(result.detail.quarterBusinessProfit)}
+Annualised business profit (net) ........  $${f(result.detail.annualisedBusinessProfitNet)}
+Annualised W-2 salary (S-corp) ..........  $${f(result.detail.annualisedW2SCorp)}
+Annualised W-2 wages (other) ............  $${f(result.detail.annualisedW2Other)}
+Other projected income ..................  $${f(result.detail.otherProjectedIncome)}
+Taxable income after QBI ................  $${f(result.detail.taxableIncomeAfterQBI)}
+QBI deduction ...........................  $${f(result.detail.qbiDeduction)}
+Ordinary income tax .....................  $${f(result.detail.ordinaryIncomeTax)}
+Self-employment tax .....................  $${f(result.detail.selfEmploymentTax)}
+Projected 2025 withholding ..............  –$${f(result.detail.projectedWithholding)}
+================================================`
+  );
+}
+
+module.exports = { calculateTaxEstimate, formatTaxEstimate };

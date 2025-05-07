@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { calculateTaxEstimate } = require('../taxes');
+const { calculateTaxEstimate, formatTaxEstimate } = require('../taxes');
 
 const app = express();
 app.use(bodyParser.json());
@@ -17,7 +17,8 @@ app.post('/calculate', (req, res) => {
       }
     }
     const result = calculateTaxEstimate(req.body);
-    res.json(result);
+    const formatted = formatTaxEstimate(result);
+    res.type('text/plain').send(formatted);
   } catch (err) {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
