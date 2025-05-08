@@ -17,8 +17,14 @@ app.post('/calculate', (req, res) => {
       }
     }
     const result = calculateTaxEstimate(req.body);
-    const formatted = formatTaxEstimate(result);
-    res.type('text/plain').send(formatted);
+    const format = (req.query.format || '').toLowerCase();
+    const accept = (req.get('Accept') || '').toLowerCase();
+    if (format === 'text' || accept === 'text/plain') {
+      const formatted = formatTaxEstimate(result);
+      res.type('text/plain').send(formatted);
+    } else {
+      res.json(result);
+    }
   } catch (err) {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
