@@ -1,9 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { calculateTaxEstimate } = require('./taxes');
+const { calculateTaxEstimate, formatTaxEstimate } = require('./taxes');
+const { calculateStateTaxes, formatStateTaxEstimate } = require('./state');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || process.argv[2] || 3000;
 
 app.use(bodyParser.json());
 
@@ -19,7 +20,39 @@ app.post('/calculate', (req, res) => {
       }
     }
     const result = calculateTaxEstimate(req.body);
-    res.json(result);
+    const format = (req.query.format || '').toLowerCase();
+    const accept = (req.get('Accept') || '').toLowerCase();
+    if (format === 'text' || accept === 'text/plain') {
+      const formatted = formatTaxEstimate(result);
+      res.type('text/plain').send(formatted);
+    } else {
+      res.json(result);
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+app.post('/calculate-state', (req, res) => {
+  try {
+    const requiredFields = [
+      'state', 'status', 'quarter', 'qGross', 'qExp',
+      'w2SCorpYTD', 'w2OtherYTD', 'withYTD', 'otherInc'
+    ];
+    for (const field of requiredFields) {
+      if (!(field in req.body)) {
+        return res.status(400).json({ error: `Missing required field: ${field}` });
+      }
+    }
+    const result = calculateStateTaxes(req.body);
+    const format = (req.query.format || '').toLowerCase();
+    const accept = (req.get('Accept') || '').toLowerCase();
+    if (format === 'text' || accept === 'text/plain') {
+      const formatted = formatStateTaxEstimate(result);
+      res.type('text/plain').send(formatted);
+    } else {
+      res.json(result);
+    }
   } catch (err) {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
