@@ -4,7 +4,7 @@ const { calculateTaxEstimate, formatTaxEstimate } = require('./taxes');
 const { calculateStateTaxes, formatStateTaxEstimate } = require('./state');
 
 const app = express();
-const PORT = process.env.PORT || process.argv[2] || 3000;
+const PORT = process.env.PORT || process.argv[2] || 3003;
 
 app.use(bodyParser.json());
 
