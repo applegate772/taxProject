@@ -1,3 +1,10 @@
+/* =====================================================================
+   2025 STATE QUARTERLY-TAX ESTIMATOR  –  Y-T-D VERSION  (23 May 2025)
+   • Accepts year-to-date gross income & expenses (grossYTD / expYTD)
+   • Adds cumulative "Target paid through …" and "Tax liability through …"
+   • Otherwise identical logic to the original quarter-based tool
+   ===================================================================== */
+
 /* ---------- 1.  MASTER DATA  (brackets + standard-deductions) -------- */
 const STATE_DATA = {
 
@@ -502,41 +509,75 @@ function calculateStateTaxes({
   if (!BR[mappedStatus]) throw new Error(`No tax brackets for status ${mappedStatus} in state ${abbr}`);
   if (typeof SD[mappedStatus] === 'undefined') throw new Error(`No standard deduction for status ${mappedStatus} in state ${abbr}`);
 
-  const monthsQ = PERIOD[quarter].months;
+  const stateFull = Object.keys(NAME_TO_ABBR)
+                          .find(k => NAME_TO_ABBR[k]===abbr && k.length>2) || abbr;
+
+  const monthsQ  = PERIOD[quarter].months;
   const monthsEL = PERIOD[quarter].elapsed;
-  const qProfit = Math.max(qGross - qExp, 0);
-  const annProfitG = qProfit * (12 / monthsQ);
+
+  // Note: qGross and qExp are now YTD inputs, not quarterly
+  const yGross = qGross;  // YTD 1099 gross
+  const yExp   = qExp;    // YTD expenses
+
+  /* ---- Annualise business profit ---- */
+  const yProfit       = Math.max(yGross - yExp, 0);               // Y-T-D profit
+  const annProfitG    = yProfit  * (12 / monthsEL);               // before salary adj.
+
+  /* ---- Annualise W-2 wages ---- */
   const annW2SCorp = w2SCorpYTD * (12 / monthsEL);
   const annW2Other = w2OtherYTD * (12 / monthsEL);
+
+  /* ---- Net business profit (remove S-corp salary) ---- */
   const annProfitNet = Math.max(annProfitG - annW2SCorp, 0);
-  const seBase = annProfitNet * 0.9235;
+
+  /* ---- Half of SE-tax deduction (rough, mirrors federal calc) ---- */
+  const seBase    = annProfitNet * 0.9235;
   const ssCapLeft = 176_100 - (annW2SCorp + annW2Other);
-  const seTaxTmp = Math.min(seBase, Math.max(ssCapLeft, 0)) * 0.124
-    + seBase * 0.029
-    + (seBase > 200000 ? (seBase - 200000) * 0.009 : 0);
-  const halfSE = seTaxTmp / 2;
-  const preSD = Math.max(annProfitNet + annW2SCorp + annW2Other + otherInc - halfSE, 0);
+  const seTaxTmp  = Math.min(seBase, Math.max(ssCapLeft,0))*0.124
+                  + seBase * 0.029
+                  + (seBase > 200000 ? (seBase - 200000)*0.009 : 0);
+  const halfSE    = seTaxTmp / 2;
+
+  /* ---- State-taxable income ---- */
+  const preSD   = Math.max(annProfitNet + annW2SCorp + annW2Other + otherInc - halfSE, 0);
   const taxable = Math.max(preSD - SD[mappedStatus], 0);
-  // Bracket-by-bracket tax
+
+  /* ---- Progressive-bracket tax ---- */
   const { tax, lines } = bracketTax(taxable, BR[mappedStatus]);
-  const projWith = withYTD * (12 / monthsEL);
-  const netTax = Math.max(tax - projWith, 0);
-  const qFactor = 12 / monthsQ;
-  const payment = Math.ceil(netTax / qFactor / 10) * 10;
-  const effRate = taxable > 0 ? (tax / preSD) * 100 : null;
-  const topRate = BR[mappedStatus].find(([edge]) => taxable <= edge)?.[1]
-    || BR[mappedStatus][BR[mappedStatus].length - 1][1];
+
+  /* ---- Withholding, quarterly payment, cumulative targets ---- */
+  const projWith      = withYTD * (12 / monthsEL);
+  const netTax        = Math.max(tax - projWith, 0);
+  const qFactor       = 12 / monthsQ;                          // 4, 6, 4, 3
+  const payment       = Math.ceil(netTax / qFactor / 10) * 10;
+
+  const shouldHavePaid = Math.ceil(netTax * (monthsEL / 12) / 10) * 10;
+  const partialTax     = Math.round(tax * (monthsEL / 12));
+
+  /* ---- Stats for display ---- */
+  const effRate  = preSD > 0 ? (tax / preSD) * 100 : null;
+  const topRate  = BR[mappedStatus].find(([edge]) => taxable <= edge)?.[1]
+                 || BR[mappedStatus][BR[mappedStatus].length-1][1];
+  const labelToDt = { Q1:"Q1",
+                      Q2:"Q1 + Q2",
+                      Q3:"Q1 + Q2 + Q3",
+                      Q4:"all 4 quarters" }[quarter];
+
   // Helper to round to 2 decimals
   const r2 = v => Number(v.toFixed(2));
+
   return {
     state: abbr,
     quarter,
     amountToPay: r2(payment),
-    projectedStateTax: r2(tax),
+    targetPaidThrough: r2(shouldHavePaid),
+    projectedTaxLiabilityThrough: r2(partialTax),
+    projectedStateTax: r2(Math.round(tax)),
     effectiveTaxRate: effRate === null ? null : r2(effRate),
     topMarginalRate: r2(topRate * 100),
+    labelToDt: labelToDt,
     detail: {
-      quarterBusinessProfit: r2(qProfit),
+      ytdBusinessProfit: r2(yProfit),
       annualisedBusinessProfitNet: r2(annProfitNet),
       annualisedW2SCorp: r2(annW2SCorp),
       annualisedW2Other: r2(annW2Other),
@@ -557,12 +598,15 @@ function formatStateTaxEstimate(result) {
 `==============  ${result.quarter} ${stateFull.toUpperCase()} ESTIMATE  ==============
 
 Amount to pay this quarter .............  $${f(result.amountToPay)}
+Target paid through ${result.labelToDt} ........  $${f(result.targetPaidThrough)}
+
+Projected tax liability through ${result.labelToDt} ...  $${f(result.projectedTaxLiabilityThrough)}
 Projected 2025 ${stateFull} tax (all year)  $${f(result.projectedStateTax)}
 Effective state rate (proj) .............  ${p(result.effectiveTaxRate)}
 Top marginal rate applied ...............  ${result.topMarginalRate.toFixed(2)} %
 
 ---------------  DETAIL  -----------------
-Quarter business profit .................  $${f(result.detail.quarterBusinessProfit)}
+YTD business profit .....................  $${f(result.detail.ytdBusinessProfit)}
 Annualised business profit (net) ........  $${f(result.detail.annualisedBusinessProfitNet)}
 Annualised W-2 salary (S-corp) ..........  $${f(result.detail.annualisedW2SCorp)}
 Annualised W-2 wages (other) ............  $${f(result.detail.annualisedW2Other)}
