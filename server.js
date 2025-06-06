@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { calculateTaxEstimate, formatTaxEstimate } = require('./taxes');
 const { calculateStateTaxes, formatStateTaxEstimate } = require('./state');
+const { createMondayDoc } = require('./monday');
 
 const app = express();
 const PORT = process.env.PORT || process.argv[2] || 3003;
@@ -58,6 +59,20 @@ app.post('/calculate-state', (req, res) => {
   }
 });
 
+app.post('/create-monday-doc', async (req, res) => {
+  const { accessToken, itemId, columnId, clientContent } = req.body;
+  if (!accessToken || !itemId || !columnId || !clientContent) {
+    return res.status(400).json({ error: 'Missing required field: accessToken, itemId, columnId, or clientContent' });
+  }
+  try {
+    const docId = await createMondayDoc(accessToken, itemId, columnId, clientContent);
+    res.json({ success: true, docId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 }); 
+
