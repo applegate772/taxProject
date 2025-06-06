@@ -58,4 +58,4 @@ async function createMondayDoc(accessToken, itemId, columnId, clientContent) {
   return docId;
 }
 
-module.exports = { createMondayDoc }; 
+module.exports = { createMondayDoc };
