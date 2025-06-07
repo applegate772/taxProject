@@ -3,13 +3,27 @@ const bodyParser = require('body-parser');
 const { calculateTaxEstimate, formatTaxEstimate } = require('./taxes');
 const { calculateStateTaxes, formatStateTaxEstimate } = require('./state');
 const { createMondayDoc } = require('./monday');
+const firefliesHandler = require('./api/fireflies');
+console.log('Fireflies handler loaded:', typeof firefliesHandler);
 
 const app = express();
 const PORT = process.env.PORT || process.argv[2] || 3003;
 
 app.use(bodyParser.json());
 
+const statusMap = {
+  'single': 'S',
+  's': 'S',
+  'married filing jointly (most common)': 'MFJ',
+  'mfj': 'MFJ',
+  'head of household': 'HOH',
+  'hoh': 'HOH',
+  'married filing separately (rare)': 'MFS',
+  'mfs': 'MFS'
+};
+
 app.post('/calculate', (req, res) => {
+  console.log('=== /calculate route hit in server.js ===');
   try {
     const requiredFields = [
       'status', 'quarter', 'qGross', 'qExp',
@@ -20,7 +34,20 @@ app.post('/calculate', (req, res) => {
         return res.status(400).json({ error: `Missing required field: ${field}` });
       }
     }
-    const result = calculateTaxEstimate(req.body);
+    // Map user-friendly status to internal code
+    let statusInput = String(req.body.status).trim().toLowerCase();
+    console.log('Original status:', req.body.status);
+    console.log('Status input after trim/lowercase:', statusInput);
+    const mappedStatus = statusMap[statusInput];
+    console.log('Mapped status:', mappedStatus);
+    if (!mappedStatus) {
+      return res.status(400).json({
+        error: `Invalid status value. Accepted values are: 'Single', 'Married Filing Jointly (Most Common)', 'Head Of Household', 'Married Filing Separately (Rare)', 'S', 'MFJ', 'HOH', 'MFS'.`
+      });
+    }
+    const input = { ...req.body, status: mappedStatus };
+    console.log('Input being passed to calculateTaxEstimate:', input);
+    const result = calculateTaxEstimate(input);
     const format = (req.query.format || '').toLowerCase();
     const accept = (req.get('Accept') || '').toLowerCase();
     if (format === 'text' || accept === 'text/plain') {
@@ -30,6 +57,7 @@ app.post('/calculate', (req, res) => {
       res.json(result);
     }
   } catch (err) {
+    console.log('Error in /calculate route:', err.message);
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
@@ -70,6 +98,11 @@ app.post('/create-monday-doc', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+app.post('/api/fireflies', (req, res) => {
+  console.log('=== /api/fireflies route hit ===');
+  firefliesHandler(req, res);
 });
 
 app.listen(PORT, () => {

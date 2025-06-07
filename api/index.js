@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const { calculateTaxEstimate, formatTaxEstimate } = require('../taxes');
 const { calculateStateTaxes, formatStateTaxEstimate } = require('../state');
 const { createMondayDoc } = require('../monday');
+const firefliesHandler = require('./fireflies');
 
 const app = express();
 app.use(bodyParser.json());
@@ -10,7 +11,7 @@ app.use(bodyParser.json());
 const statusMap = {
   'single': 'S',
   's': 'S',
-  'married filing jointly (most common)': 'MFJ',
+  'Married Filing Jointly (Most Common)': 'MFJ',
   'mfj': 'MFJ',
   'head of household': 'HOH',
   'hoh': 'HOH',
@@ -31,13 +32,17 @@ app.post('/calculate', (req, res) => {
     }
     // Map user-friendly status to internal code
     let statusInput = String(req.body.status).trim().toLowerCase();
+    console.log('Original status:', req.body.status);
+    console.log('Status input after trim/lowercase:', statusInput);
     const mappedStatus = statusMap[statusInput];
+    console.log('Mapped status:', mappedStatus);
     if (!mappedStatus) {
       return res.status(400).json({
         error: `Invalid status value. Accepted values are: 'Single', 'Married Filing Jointly (Most Common)', 'Head Of Household', 'Married Filing Separately (Rare)', 'S', 'MFJ', 'HOH', 'MFS'.`
       });
     }
     const input = { ...req.body, status: mappedStatus };
+    console.log('Input being passed to calculateTaxEstimate:', input);
     const result = calculateTaxEstimate(input);
     const format = (req.query.format || '').toLowerCase();
     const accept = (req.get('Accept') || '').toLowerCase();
@@ -48,6 +53,7 @@ app.post('/calculate', (req, res) => {
       res.json(result);
     }
   } catch (err) {
+    console.log('Error in /calculate route:', err.message);
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
@@ -103,5 +109,11 @@ app.post('/create-monday-doc', async (req, res) => {
   }
 });
 
+app.post('/api/fireflies', (req, res) => {
+  firefliesHandler(req, res);
+});
+
 module.exports = app;
 module.exports.handler = (req, res) => app(req, res); 
+
+
