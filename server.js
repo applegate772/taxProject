@@ -73,7 +73,18 @@ app.post('/calculate-state', (req, res) => {
         return res.status(400).json({ error: `Missing required field: ${field}` });
       }
     }
-    const result = calculateStateTaxes(req.body);
+    
+    // Map user-friendly status to internal code
+    let statusInput = String(req.body.status).trim().toLowerCase();
+    const mappedStatus = statusMap[statusInput];
+    if (!mappedStatus) {
+      return res.status(400).json({
+        error: `Invalid status value. Accepted values are: 'Single', 'Married Filing Jointly (Most Common)', 'Head Of Household', 'Married Filing Separately (Rare)', 'S', 'MFJ', 'HOH', 'MFS'.`
+      });
+    }
+    
+    const input = { ...req.body, status: mappedStatus };
+    const result = calculateStateTaxes(input);
     const format = (req.query.format || '').toLowerCase();
     const accept = (req.get('Accept') || '').toLowerCase();
     if (format === 'text' || accept === 'text/plain') {

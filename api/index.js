@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 const statusMap = {
   'single': 'S',
   's': 'S',
-  'Married Filing Jointly (Most Common)': 'MFJ',
+  'married filing jointly (most common)': 'MFJ',
   'mfj': 'MFJ',
   'head of household': 'HOH',
   'hoh': 'HOH',
