@@ -4,6 +4,7 @@ const { calculateTaxEstimate, formatTaxEstimate } = require('../taxes');
 const { calculateStateTaxes, formatStateTaxEstimate } = require('../state');
 const { createMondayDoc } = require('../monday');
 const firefliesHandler = require('./fireflies');
+const searchTranscriptsHandler = require('./searchTranscripts');
 
 const app = express();
 app.use(bodyParser.json());
@@ -111,6 +112,10 @@ app.post('/create-monday-doc', async (req, res) => {
 
 app.post('/api/fireflies', (req, res) => {
   firefliesHandler(req, res);
+});
+
+app.post('/api/search-transcripts', (req, res) => {
+  searchTranscriptsHandler(req, res);
 });
 
 module.exports = app;

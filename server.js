@@ -4,6 +4,7 @@ const { calculateTaxEstimate, formatTaxEstimate } = require('./taxes');
 const { calculateStateTaxes, formatStateTaxEstimate } = require('./state');
 const { createMondayDoc } = require('./monday');
 const firefliesHandler = require('./api/fireflies');
+const searchTranscriptsHandler = require('./api/searchTranscripts');
 console.log('Fireflies handler loaded:', typeof firefliesHandler);
 
 const app = express();
@@ -114,6 +115,10 @@ app.post('/create-monday-doc', async (req, res) => {
 app.post('/api/fireflies', (req, res) => {
   console.log('=== /api/fireflies route hit ===');
   firefliesHandler(req, res);
+});
+
+app.post('/api/search-transcripts', (req, res) => {
+  searchTranscriptsHandler(req, res);
 });
 
 app.listen(PORT, () => {

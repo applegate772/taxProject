@@ -7,6 +7,7 @@
     { "src": "/calculate", "dest": "/api/index.js" },
     { "src": "/calculate-state", "dest": "/api/index.js" },
     { "src": "/create-monday-doc", "dest": "/api/index.js" },
-    { "src": "/api/fireflies", "dest": "/api/index.js" }
+    { "src": "/api/fireflies", "dest": "/api/index.js" },
+    { "src": "/api/search-transcripts", "dest": "/api/index.js" }
   ]
 } 
